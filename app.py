@@ -9,7 +9,7 @@ import base64
 
 # API Variables
 deployment = 'markjellison'
-token = 'e0lsIgICJ2rDoxzfFYGEJlgXiA~bfR9y'
+token = 'bph_x2jZhn-W-UITwQhgWVVh8xLPDuAw'
 
 # Query Defaults
 email = 'customer.owner.affinitylive@gmail.com'
@@ -24,7 +24,15 @@ headers = {'Content-Type': 'application/json',
           'Authorization': f'Bearer {token}'}
 
 # Open the source CSV
-source = pd.read_csv('CSV Files/delighted-data_24-February-2020.csv')
+filenameSuccessful = 'no'
+while filenameSuccessful == 'no':
+    filename = input('Please enter the source filename (filename): ')
+    try:
+        source = pd.read_csv(f'{filename}.csv')
+        print("File found.  Loading the file and cleaning its data now...")
+        filenameSuccessful = 'yes'
+    except:
+        print("No such file found.\n\n")
 
 # Create a new DF with just the relevant columns
 data = source[['Name', 'Email', 'Score', 'Comment', 'Response Timestamp', 'access_level', 'company_id', 'company_name', 'Delighted Country', 'domain', 'industry_template', 'manager', 'monthly_spend']]
@@ -34,9 +42,11 @@ data = data.rename(columns={"access_level": "Access Level", "company_id": "Compa
 
 # Replace any scores of 0 with "Zero"
 data.loc[(data.Score == 0), 'Score']='Zero'
+print("'0' scores successfully replaced with 'Zero'...")
 
 # Copy the contents of the Score column as "Title"
 data['Title'] = data['Score']
+print("'Title' column successfully created...")
 
 # Loop through the data
 for index, row in data.iterrows():
@@ -60,6 +70,8 @@ for index, row in data.iterrows():
                 print(f'API Error: {e}')
     except:
         pass
+print("Times successfully removed from Response Timestamp...")
+print("Missing Company IDs successfully added...")
 
 # Clean up the respondents' names
 names = data['Original Name'].tolist()
@@ -102,6 +114,9 @@ data['Last Name'] = name2
 data['Other Name 1'] = name3
 data['Other Name 2'] = name4
 data['Other Name 3'] = name5
+print("Name successfully split into separate columns...")
 
 # Output the result to CSV
-data.to_csv('CSV Result/CLEANED.csv', index=False)
+cleanedFilename = filename + '-Cleaned.csv'
+data.to_csv(cleanedFilename, index=False)
+print(f'Cleanup complete.  Cleaned file is named {cleanedFilename}')
