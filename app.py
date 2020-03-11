@@ -2,31 +2,50 @@
 import pandas as pd
 import numpy as np
 import requests
+import json
 import pprint as pp
 import math
 import re
 import base64
 
+# Local file dependencies
+import api_config
+
 # API Variables
-deployment = 'markjellison'
-token = 'bph_x2jZhn-W-UITwQhgWVVh8xLPDuAw'
+deployment = 'hq'
+clientId = api_config.clientId
+clientSecret = api_config.clientSecret
+
+#Encode the Client ID and Secret
+preCoding = f'{clientId}:{clientSecret}'
+encoded = str(base64.b64encode(preCoding.encode("utf-8")), "utf-8")
 
 # Query Defaults
-email = 'customer.owner.affinitylive@gmail.com'
-companyId= '2195'
+email = 'email@domain.com'
+companyId= '123'
 
 # API Endpoint Setup
 urlAffiliations = f'https://{deployment}.api.accelo.com/api/v0/affiliations?_fields=id,email,company&_search={email}&_limit=1'
 urlCompanies = f'https://{deployment}.api.accelo.com/api/v0/companies?_filters=id({companyId})&_fields=name&_limit=1'
+urlAuthorize = f'https://{deployment}.api.accelo.com/oauth2/v0/token'
 
-# API Header Setup
+# API Setup
+authHeaders = {'Authorization': f'Basic {encoded}',
+          'Content-Type': 'application/json'}
+body = {
+    "grant_type": "client_credentials",
+    "scope": "read(all)",
+    "expires_in": "3600"
+}
+response = requests.post(urlAuthorize, headers=authHeaders, data=json.dumps(body)).json()
+token = response['access_token']
 headers = {'Content-Type': 'application/json',
           'Authorization': f'Bearer {token}'}
 
 # Open the source CSV
 filenameSuccessful = 'no'
 while filenameSuccessful == 'no':
-    filename = input('Please enter the source filename (filename): ')
+    filename = input('Please enter the source filename (no file extension): ')
     try:
         source = pd.read_csv(f'{filename}.csv')
         print("File found.  Loading the file and cleaning its data now...")
@@ -49,6 +68,7 @@ data['Title'] = data['Score']
 print("'Title' column successfully created...")
 
 # Loop through the data
+print(f'Checking for blank Company IDs...')
 for index, row in data.iterrows():
     # Remove the timestamp from Response Timestamp
     companyName = row['Company Name']
@@ -61,17 +81,21 @@ for index, row in data.iterrows():
             email = row['Email']
             urlAffiliations = f'https://{deployment}.api.accelo.com/api/v0/affiliations?_fields=id,email,company&_search={email}&_limit=1'
             try:
+                print(f'Blank Company ID found at row #{index}.  Checking HQ for the correct ID based on {email}')
                 response = requests.get(urlAffiliations, headers=headers).json()
                 if response['response'] != []:
 
                     companyId = response['response'][0]['company']
                     data.loc[(data['Company Name'] == companyName), 'Company ID']=companyId
+                    print(f'New Company ID added: {companyId}')
+                else:
+                    print(f'Email address not found in HQ.  This is a new contact.')
             except requests.exceptions.RequestException as e:
                 print(f'API Error: {e}')
     except:
         pass
-print("Times successfully removed from Response Timestamp...")
 print("Missing Company IDs successfully added...")
+print("Times successfully removed from Response Timestamp...")
 
 # Clean up the respondents' names
 names = data['Original Name'].tolist()
