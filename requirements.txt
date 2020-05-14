@@ -1,8 +1,4 @@
 pandas
 numpy
 requests
-json
 pprint
-math
-re
-base64
